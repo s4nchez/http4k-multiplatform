@@ -10,7 +10,7 @@ actual class DataStream : Closeable {
     }
 }
 
-actual class DataInMemory {
+actual class DataInMemory actual constructor(value: String) {
     actual fun asStream(): DataStream {
         TODO("Not yet implemented")
     }
@@ -20,6 +20,10 @@ actual class DataInMemory {
     }
 
     actual fun size(): Int {
+        TODO("Not yet implemented")
+    }
+
+    actual constructor(value: ByteArray) : this("") {
         TODO("Not yet implemented")
     }
 }
