@@ -1,1 +1,2 @@
 * JDK 20 doesn't seem to be supported by Kotlin multiplatform?
+* function interfaces (e.g. Filter, RoutingHttpHandler) are not supported by Kotlin multiplatform

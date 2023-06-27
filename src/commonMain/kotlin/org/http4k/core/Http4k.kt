@@ -4,11 +4,11 @@ import org.http4k.routing.RoutingHttpHandler
 
 typealias HttpHandler = (request: Request) -> Response
 
-fun interface Filter : (HttpHandler) -> HttpHandler {
-    companion object
-}
+typealias Filter = (HttpHandler) -> HttpHandler
 
-val Filter.Companion.NoOp: Filter get() = Filter { next -> { next(it) } }
+fun Filter(actual: Filter): Filter = actual
+
+val Filter.NoOp: Filter get() = Filter { next -> { next(it) } }
 
 fun Filter.then(next: Filter): Filter = Filter { this(next(it)) }
 
