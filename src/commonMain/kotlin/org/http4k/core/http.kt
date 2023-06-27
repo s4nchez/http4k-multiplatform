@@ -1,23 +1,37 @@
 package org.http4k.core
 
-import org.http4k.asByteBuffer
 import org.http4k.asString
 import org.http4k.core.Body.Companion.EMPTY
 import org.http4k.core.HttpMessage.Companion.HTTP_1_1
-import org.http4k.length
-import java.io.Closeable
-import java.io.InputStream
-import java.nio.ByteBuffer
 
 typealias Headers = Parameters
+
+interface Closeable {
+    fun close()
+}
+
+interface DataStream : Closeable {
+    fun consumeAll(): DataInMemory
+}
+
+interface DataInMemory {
+    fun asStream(): DataStream
+    fun asString(): String
+    fun size(): Int
+}
+
+expect object BodyData {
+    fun of(array: ByteArray): DataInMemory
+    fun of(string: String): DataInMemory
+}
 
 /**
  * If this Body is NOT being returned to the caller (via a Server implementation or otherwise), close() should be
  * called.
  */
 interface Body : Closeable {
-    val stream: InputStream
-    val payload: ByteBuffer
+    val stream: DataStream
+    val payload: DataInMemory
 
     /**
      * Will be `null` for bodies where it's impossible to a priori determine - e.g. StreamBody
@@ -27,40 +41,37 @@ interface Body : Closeable {
     companion object {
         operator fun invoke(body: String): Body = MemoryBody(body)
 
-        operator fun invoke(body: ByteBuffer): Body = when {
-            body.hasArray() -> MemoryBody(body)
-            else -> MemoryBody(ByteArray(body.remaining()).also { body.get(it) })
-        }
+        operator fun invoke(body: DataInMemory): Body = MemoryBody(body)
 
-        operator fun invoke(body: InputStream, length: Long? = null): Body = StreamBody(body, length)
+        operator fun invoke(body: DataStream, length: Long? = null): Body = StreamBody(body, length)
 
-        val EMPTY: Body = MemoryBody(ByteBuffer.allocate(0))
+        val EMPTY: Body = MemoryBody("")
     }
 }
 
 /**
- * Represents a body that is backed by an in-memory ByteBuffer. Closing this has no effect.
+ * Represents a body that is backed by an in-memory DataInMemory. Closing this has no effect.
  **/
-data class MemoryBody(override val payload: ByteBuffer) : Body {
-    constructor(payload: String) : this(payload.asByteBuffer())
-    constructor(payload: ByteArray) : this(ByteBuffer.wrap(payload))
+data class MemoryBody(override val payload: DataInMemory) : Body {
+    constructor(payload: String) : this(BodyData.of(payload))
+    constructor(payload: ByteArray) : this(BodyData.of(payload))
 
-    override val length get() = payload.length().toLong()
+    override val length get() = payload.size().toLong()
     override fun close() {}
-    override val stream get() = payload.array().inputStream(payload.position(), payload.length())
+    override val stream get() = payload.asStream()
     override fun toString() = payload.asString()
 }
 
 /**
- * Represents a body that is backed by a (lazy) InputStream. Operating with StreamBody has a number of potential
+ * Represents a body that is backed by a (lazy) DataStream. Operating with StreamBody has a number of potential
  * gotchas:
  * 1. Attempts to consume the stream will pull all of the contents into memory, and should thus be avoided.
  * This includes calling `equals()` and `payload`
  * 2. If this Body is NOT being returned to the caller (via a Server implementation or otherwise), close() should be called.
  * 3. Depending on the source of the stream, this body may or may not contain a known length.
  */
-class StreamBody(override val stream: InputStream, override val length: Long? = null) : Body {
-    override val payload: ByteBuffer by lazy { stream.use { ByteBuffer.wrap(it.readBytes()) } }
+class StreamBody(override val stream: DataStream, override val length: Long? = null) : Body {
+    override val payload: DataInMemory by lazy { stream.consumeAll() }
 
     override fun close() {
         stream.close()
@@ -139,7 +150,7 @@ interface HttpMessage : Closeable {
     /**
      * (Copy &) sets the body content.
      */
-    fun body(body: InputStream, length: Long? = null): HttpMessage
+    fun body(body: DataStream, length: Long? = null): HttpMessage
 
     /**
      * Retrieves all header values with this name.
@@ -149,7 +160,7 @@ interface HttpMessage : Closeable {
     /**
      * This will realise any underlying stream.
      */
-    fun bodyString(): String = String(body.payload.array())
+    fun bodyString(): String = body.payload.asString()
 
     companion object {
         const val HTTP_1_1 = "HTTP/1.1"
@@ -230,7 +241,7 @@ interface Request : HttpMessage {
 
     override fun body(body: String): Request
 
-    override fun body(body: InputStream, length: Long?): Request
+    override fun body(body: DataStream, length: Long?): Request
 
     override fun toMessage() =
         listOf("$method $uri $version", headers.toHeaderMessage(), bodyString()).joinToString("\r\n")
@@ -285,15 +296,15 @@ data class MemoryRequest(
 
     override fun body(body: String) = copy(body = Body(body))
 
-    override fun body(body: InputStream, length: Long?) = copy(body = Body(body, length))
+    override fun body(body: DataStream, length: Long?) = copy(body = Body(body, length))
 
     override fun toString(): String = toMessage()
 
     override fun equals(other: Any?) = (other is Request
-        && headers.areSameHeadersAs(other.headers)
-        && method == other.method
-        && uri == other.uri
-        && body == other.body)
+            && headers.areSameHeadersAs(other.headers)
+            && method == other.method
+            && uri == other.uri
+            && body == other.body)
 }
 
 @Suppress("EqualsOrHashCode")
@@ -316,7 +327,7 @@ interface Response : HttpMessage {
 
     override fun body(body: String): Response
 
-    override fun body(body: InputStream, length: Long?): Response
+    override fun body(body: DataStream, length: Long?): Response
 
     fun status(new: Status): Response
 
@@ -354,14 +365,14 @@ data class MemoryResponse(
 
     override fun status(new: Status) = copy(status = new)
 
-    override fun body(body: InputStream, length: Long?) = copy(body = Body(body, length))
+    override fun body(body: DataStream, length: Long?) = copy(body = Body(body, length))
 
     override fun toString(): String = toMessage()
 
     override fun equals(other: Any?) = (other is Response
-        && headers.areSameHeadersAs(other.headers)
-        && status == other.status
-        && body == other.body)
+            && headers.areSameHeadersAs(other.headers)
+            && status == other.status
+            && body == other.body)
 }
 
 data class RequestSource(val address: String, val port: Int? = 0, val scheme: String? = null)
