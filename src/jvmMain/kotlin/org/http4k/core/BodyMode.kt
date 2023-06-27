@@ -1,5 +1,8 @@
 package org.http4k.core
 
+import java.io.InputStream
+import java.nio.ByteBuffer
+
 /**
  * BodyMode represents a choice between working lazily with streams or eagerly storing the body contents in memory.
  *
@@ -14,10 +17,11 @@ package org.http4k.core
  */
 sealed class BodyMode : (InputStream) -> Body {
     object Memory : BodyMode() {
-        override fun invoke(stream: InputStream): Body = stream.use { Body(ByteBuffer.wrap(it.readBytes())) }
+        override fun invoke(stream: InputStream): Body =
+            stream.use { Body(DataInMemory(ByteBuffer.wrap(it.readBytes()))) }
     }
 
     object Stream : BodyMode() {
-        override fun invoke(stream: InputStream): Body = Body(stream)
+        override fun invoke(stream: InputStream): Body = Body(DataStream(stream))
     }
 }

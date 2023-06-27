@@ -1,15 +1,9 @@
 package org.http4k.server
 
 import com.sun.net.httpserver.HttpExchange
-import org.http4k.core.HttpHandler
-import org.http4k.core.Method
-import org.http4k.core.Request
-import org.http4k.core.RequestSource
-import org.http4k.core.Response
+import org.http4k.core.*
 import org.http4k.core.Status.Companion.NOT_IMPLEMENTED
 import org.http4k.core.Status.Companion.NO_CONTENT
-import org.http4k.core.Uri
-import org.http4k.core.safeLong
 
 class HttpExchangeHandler(private val handler: HttpHandler) : com.sun.net.httpserver.HttpHandler {
     private fun HttpExchange.populate(httpResponse: Response) {
@@ -18,7 +12,7 @@ class HttpExchangeHandler(private val handler: HttpHandler) : com.sun.net.httpse
             sendResponseHeaders(httpResponse.status.code, -1)
         } else {
             sendResponseHeaders(httpResponse.status.code, httpResponse.body.length ?: 0)
-            httpResponse.body.stream.use { input -> responseBody.use { input.copyTo(it) } }
+            httpResponse.body.stream.inputStream.use { input -> responseBody.use { input.copyTo(it) } }
         }
     }
 
@@ -28,7 +22,7 @@ class HttpExchangeHandler(private val handler: HttpHandler) : com.sun.net.httpse
                 Request(it,
                     requestURI.rawQuery?.let { Uri.of(requestURI.rawPath).query(requestURI.rawQuery) }
                         ?: Uri.of(requestURI.rawPath))
-                    .body(requestBody, requestHeaders.getFirst("Content-Length").safeLong())
+                    .body(DataStream(requestBody), requestHeaders.getFirst("Content-Length").safeLong())
                     .headers(requestHeaders.toList().flatMap { (key, values) -> values.map { key to it } })
                     .source(RequestSource(localAddress.address.hostAddress, localAddress.port))
             }

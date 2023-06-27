@@ -9,11 +9,11 @@ interface Closeable {
     fun close()
 }
 
-interface DataStream : Closeable {
+expect class DataStream : Closeable {
     fun consumeAll(): DataInMemory
 }
 
-interface DataInMemory {
+expect class DataInMemory {
     fun asStream(): DataStream
     fun asString(): String
     fun size(): Int

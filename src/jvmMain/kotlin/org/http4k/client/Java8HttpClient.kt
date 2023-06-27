@@ -1,10 +1,6 @@
 package org.http4k.client
 
-import org.http4k.core.Body
-import org.http4k.core.HttpHandler
-import org.http4k.core.Request
-import org.http4k.core.Response
-import org.http4k.core.Status
+import org.http4k.core.*
 import org.http4k.core.Status.Companion.CLIENT_TIMEOUT
 import org.http4k.core.Status.Companion.CONNECTION_REFUSED
 import org.http4k.core.Status.Companion.UNKNOWN_HOST
@@ -45,8 +41,8 @@ object Java8HttpClient {
                 }
                 request.body.apply {
                     if (this != Body.EMPTY) {
-                        val content = if (stream.available() == 0) payload.array().inputStream() else stream
-                        content.copyTo(outputStream)
+                        val content: DataStream = if (stream.inputStream.available() == 0) payload.asStream() else stream
+                        content.inputStream.copyTo(outputStream)
                     }
                 }
             }
@@ -69,7 +65,7 @@ object Java8HttpClient {
 
     // Because HttpURLConnection closes the stream if a new request is made, we are forced to consume it straight away
     private fun HttpURLConnection.body(status: Status) =
-        Body(resolveStream(status).readBytes().let { ByteBuffer.wrap(it) })
+        Body(DataInMemory(resolveStream(status).readBytes().let { ByteBuffer.wrap(it) }))
 
     private fun HttpURLConnection.resolveStream(status: Status) =
         when {

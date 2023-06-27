@@ -4,24 +4,24 @@ import java.io.InputStream
 import java.nio.ByteBuffer
 
 actual object BodyData {
-    actual fun of(array: ByteArray): DataInMemory = ByteBufferDataInMemory(ByteBuffer.wrap(array))
+    actual fun of(array: ByteArray): DataInMemory = DataInMemory(ByteBuffer.wrap(array))
 
-    actual fun of(string: String): DataInMemory = ByteBufferDataInMemory(string.asByteBuffer())
+    actual fun of(string: String): DataInMemory = DataInMemory(string.asByteBuffer())
 }
 
-data class ByteBufferDataInMemory(val payload: ByteBuffer) : DataInMemory {
-    override fun asStream(): DataStream {
-        return InputStreamDataStream(payload.array().inputStream(payload.position(), size()))
+actual data class DataInMemory(val payload: ByteBuffer) {
+    actual fun asStream(): DataStream {
+        return DataStream(payload.array().inputStream(payload.position(), size()))
     }
 
-    override fun asString(): String = String(payload.array())
+    actual fun asString(): String = String(payload.array())
 
-    override fun size(): Int = payload.limit() - payload.position()
+    actual fun size(): Int = payload.limit() - payload.position()
 
 }
 
-data class InputStreamDataStream(val inputStream: InputStream) : DataStream {
-    override fun consumeAll(): DataInMemory = inputStream.use { BodyData.of(it.readBytes()) }
+actual data class DataStream(val inputStream: InputStream) : Closeable {
+    actual fun consumeAll(): DataInMemory = inputStream.use { BodyData.of(it.readBytes()) }
 
     override fun close() {
         inputStream.close()

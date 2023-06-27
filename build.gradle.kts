@@ -45,7 +45,12 @@ kotlin {
                 implementation(kotlin("test"))
             }
         }
-        val jvmMain by getting
+        val jvmMain by getting {
+            dependencies {
+                implementation("javax.servlet:javax.servlet-api:4.0.1")
+                implementation("jakarta.servlet:jakarta.servlet-api:6.0.0")
+            }
+        }
         val jvmTest by getting
         val jsMain by getting
         val jsTest by getting

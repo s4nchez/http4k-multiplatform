@@ -2,15 +2,8 @@ package org.http4k.servlet.jakarta
 
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import org.http4k.core.HttpHandler
-import org.http4k.core.Method
-import org.http4k.core.Parameters
-import org.http4k.core.Request
-import org.http4k.core.RequestSource
-import org.http4k.core.Response
+import org.http4k.core.*
 import org.http4k.core.Status.Companion.NOT_IMPLEMENTED
-import org.http4k.core.Uri
-import org.http4k.core.safeLong
 import org.http4k.server.supportedOrNull
 import java.util.Enumeration
 
@@ -26,12 +19,12 @@ class Http4kJakartaServletAdapter(private val handler: HttpHandler) {
 fun Response.transferTo(destination: HttpServletResponse) {
     destination.status = status.code
     headers.forEach { (key, value) -> destination.addHeader(key, value) }
-    body.stream.use { input -> destination.outputStream.use { output -> input.copyTo(output) } }
+    body.stream.inputStream.use { input -> destination.outputStream.use { output -> input.copyTo(output) } }
 }
 
 fun HttpServletRequest.asHttp4kRequest() = Method.supportedOrNull(method)?.let {
     Request(it, Uri.of(requestURI + queryString.toQueryString()))
-        .body(inputStream, getHeader("Content-Length").safeLong()).headers(headerParameters())
+        .body(DataStream(inputStream), getHeader("Content-Length").safeLong()).headers(headerParameters())
         .source(RequestSource(remoteAddr, remotePort, scheme))
 }
 

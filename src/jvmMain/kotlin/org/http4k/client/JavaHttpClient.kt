@@ -1,14 +1,9 @@
 package org.http4k.client
 
 import org.http4k.client.PreCannedJavaHttpClients.defaultJavaHttpClient
-import org.http4k.core.Body
-import org.http4k.core.BodyMode
+import org.http4k.core.*
 import org.http4k.core.BodyMode.Memory
 import org.http4k.core.BodyMode.Stream
-import org.http4k.core.HttpHandler
-import org.http4k.core.Request
-import org.http4k.core.Response
-import org.http4k.core.Status
 import org.http4k.core.Status.Companion.CLIENT_TIMEOUT
 import org.http4k.core.Status.Companion.CONNECTION_REFUSED
 import org.http4k.core.Status.Companion.UNKNOWN_HOST
@@ -42,9 +37,10 @@ object JavaHttpClient {
             val javaRequest = request.toJavaHttpRequest(requestBodyMode, requestModifier)
             when (responseBodyMode) {
                 is Memory -> httpClient.send(javaRequest, BodyHandlers.ofByteArray())
-                    .run { coreResponse().body(Body(ByteBuffer.wrap(body()))) }
+                    .run { coreResponse().body(Body(DataInMemory(ByteBuffer.wrap(body())))) }
+
                 is Stream -> httpClient.send(javaRequest, BodyHandlers.ofInputStream())
-                    .run { coreResponse().body(body()) }
+                    .run { coreResponse().body(DataStream(body())) }
             }
         } catch (e: UnknownHostException) {
             Response(UNKNOWN_HOST.toClientStatus(e))
@@ -66,7 +62,10 @@ object PreCannedJavaHttpClients {
         .build()
 }
 
-private fun Request.toJavaHttpRequest(bodyMode: BodyMode, requestModifier: (HttpRequest.Builder) -> HttpRequest.Builder) =
+private fun Request.toJavaHttpRequest(
+    bodyMode: BodyMode,
+    requestModifier: (HttpRequest.Builder) -> HttpRequest.Builder
+) =
     HttpRequest.newBuilder()
         .uri(URI.create(uri.toString()))
         .apply {
@@ -86,8 +85,8 @@ private fun <T> HttpResponse<T>.coreResponse() =
         .flatten())
 
 private fun Body.toRequestPublisher(bodyMode: BodyMode) = when (bodyMode) {
-    Memory -> HttpRequest.BodyPublishers.ofByteArray(payload.array())
-    Stream -> HttpRequest.BodyPublishers.ofInputStream { stream }
+    Memory -> HttpRequest.BodyPublishers.ofByteArray(payload.payload.array())
+    Stream -> HttpRequest.BodyPublishers.ofInputStream { stream.inputStream }
 }
 
 // list copied from internal JDK Utils.ALLOWED_HEADERS
