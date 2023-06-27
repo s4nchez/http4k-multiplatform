@@ -1,6 +1,5 @@
 package org.http4k.core
 
-import org.http4k.asString
 import org.http4k.core.Body.Companion.EMPTY
 import org.http4k.core.HttpMessage.Companion.HTTP_1_1
 
