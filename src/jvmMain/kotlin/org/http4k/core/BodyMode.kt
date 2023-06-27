@@ -1,8 +1,5 @@
 package org.http4k.core
 
-import java.io.InputStream
-import java.nio.ByteBuffer
-
 /**
  * BodyMode represents a choice between working lazily with streams or eagerly storing the body contents in memory.
  *

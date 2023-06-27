@@ -5,8 +5,6 @@ import org.http4k.asString
 import org.http4k.core.Body.Companion.EMPTY
 import org.http4k.core.HttpMessage.Companion.HTTP_1_1
 import org.http4k.length
-import org.http4k.lens.WebForm
-import org.http4k.routing.RoutedRequest
 import java.io.Closeable
 import java.io.InputStream
 import java.nio.ByteBuffer
@@ -27,22 +25,15 @@ interface Body : Closeable {
     val length: Long?
 
     companion object {
-        @JvmStatic
-        @JvmName("create")
         operator fun invoke(body: String): Body = MemoryBody(body)
 
-        @JvmStatic
-        @JvmName("create")
         operator fun invoke(body: ByteBuffer): Body = when {
             body.hasArray() -> MemoryBody(body)
             else -> MemoryBody(ByteArray(body.remaining()).also { body.get(it) })
         }
 
-        @JvmStatic
-        @JvmName("create")
         operator fun invoke(body: InputStream, length: Long? = null): Body = StreamBody(body, length)
 
-        @JvmField
         val EMPTY: Body = MemoryBody(ByteBuffer.allocate(0))
     }
 }
@@ -245,20 +236,11 @@ interface Request : HttpMessage {
         listOf("$method $uri $version", headers.toHeaderMessage(), bodyString()).joinToString("\r\n")
 
     companion object {
-        @JvmStatic
-        @JvmOverloads
-        @JvmName("create")
         operator fun invoke(method: Method, uri: Uri, version: String = HTTP_1_1): Request =
             MemoryRequest(method, uri, listOf(), EMPTY, version)
 
-        @JvmStatic
-        @JvmOverloads
-        @JvmName("create")
         operator fun invoke(method: Method, uri: String, version: String = HTTP_1_1): Request =
             Request(method, Uri.of(uri), version)
-
-        operator fun invoke(method: Method, template: UriTemplate, version: String = HTTP_1_1): Request =
-            RoutedRequest(Request(method, template.toString(), version), template)
     }
 }
 
@@ -342,9 +324,6 @@ interface Response : HttpMessage {
         listOf("$version $status", headers.toHeaderMessage(), bodyString()).joinToString("\r\n")
 
     companion object {
-        @JvmStatic
-        @JvmOverloads
-        @JvmName("create")
         operator fun invoke(status: Status, version: String = HTTP_1_1): Response =
             MemoryResponse(status, listOf(), EMPTY, version)
     }
@@ -389,4 +368,3 @@ data class RequestSource(val address: String, val port: Int? = 0, val scheme: St
 
 fun <T : HttpMessage> T.with(vararg modifiers: (T) -> T): T = modifiers.fold(this) { memo, next -> next(memo) }
 
-fun WebForm.with(vararg modifiers: (WebForm) -> WebForm) = modifiers.fold(this) { memo, next -> next(memo) }

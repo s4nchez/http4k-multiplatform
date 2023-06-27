@@ -11,7 +11,6 @@ data class Uri(val scheme: String, val userInfo: String, val host: String, val p
         private val AUTHORITY = Regex("(?:([^@]+)@)?([^:]+)(?::([\\d]+))?")
         private val RFC3986 = Regex("^(?:([^:/?#]+):)?(?://([^/?#]*))?([^?#]*)(?:\\?([^#]*))?(?:#(.*))?")
 
-        @JvmStatic
         fun of(value: String): Uri {
             val result = RFC3986.matchEntire(value) ?: throw RuntimeException("Invalid Uri: $value")
             val (scheme, authority, path, query, fragment) = result.destructured
