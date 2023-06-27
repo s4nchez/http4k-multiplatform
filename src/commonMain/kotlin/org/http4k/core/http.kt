@@ -13,15 +13,11 @@ expect class DataStream : Closeable {
     fun consumeAll(): DataInMemory
 }
 
-expect class DataInMemory {
+expect class DataInMemory(value: ByteArray) {
+    constructor(value: String)
     fun asStream(): DataStream
     fun asString(): String
     fun size(): Int
-}
-
-expect object BodyData {
-    fun of(array: ByteArray): DataInMemory
-    fun of(string: String): DataInMemory
 }
 
 /**
@@ -52,8 +48,8 @@ interface Body : Closeable {
  * Represents a body that is backed by an in-memory DataInMemory. Closing this has no effect.
  **/
 data class MemoryBody(override val payload: DataInMemory) : Body {
-    constructor(payload: String) : this(BodyData.of(payload))
-    constructor(payload: ByteArray) : this(BodyData.of(payload))
+    constructor(payload: String) : this(DataInMemory(payload))
+    constructor(payload: ByteArray) : this(DataInMemory(payload))
 
     override val length get() = payload.size().toLong()
     override fun close() {}
