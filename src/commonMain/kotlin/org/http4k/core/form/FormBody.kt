@@ -1,4 +1,4 @@
-package org.http4k.core.body
+package org.http4k.core.form
 
 import org.http4k.core.Body
 import org.http4k.core.Parameters
