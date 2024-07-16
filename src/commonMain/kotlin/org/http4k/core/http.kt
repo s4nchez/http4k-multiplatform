@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalStdlibApi::class)
+
 package org.http4k.core
 
 import org.http4k.core.Body.Companion.EMPTY
@@ -5,11 +7,8 @@ import org.http4k.core.HttpMessage.Companion.HTTP_1_1
 
 typealias Headers = Parameters
 
-interface Closeable {
-    fun close()
-}
 
-expect class DataStream : Closeable {
+expect class DataStream : AutoCloseable {
     fun consumeAll(): DataInMemory
 }
 
@@ -24,7 +23,7 @@ expect class DataInMemory(value: ByteArray) {
  * If this Body is NOT being returned to the caller (via a Server implementation or otherwise), close() should be
  * called.
  */
-interface Body : Closeable {
+interface Body : AutoCloseable {
     val stream: DataStream
     val payload: DataInMemory
 
@@ -87,7 +86,7 @@ class StreamBody(override val stream: DataStream, override val length: Long? = n
 /**
  * HttpMessages are designed to be immutable, so any mutation methods return a modified copy of the message.
  */
-interface HttpMessage : Closeable {
+interface HttpMessage : AutoCloseable {
     val headers: Headers
     val body: Body
     val version: String

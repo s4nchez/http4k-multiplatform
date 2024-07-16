@@ -1,5 +1,7 @@
 package org.http4k.core
 
+import java.lang.AutoCloseable
+
 
 actual class DataInMemory(private val payload:Payload) {
 
@@ -13,7 +15,7 @@ actual class DataInMemory(private val payload:Payload) {
     actual constructor(value: String) : this(Payload(value))
 }
 
-actual data class DataStream(val payload: Payload) : Closeable {
+actual data class DataStream(val payload: Payload) : AutoCloseable {
     actual fun consumeAll(): DataInMemory = DataInMemory(payload)
 
     override fun close() {

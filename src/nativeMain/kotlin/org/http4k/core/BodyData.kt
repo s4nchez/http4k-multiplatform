@@ -1,6 +1,8 @@
+@file:OptIn(ExperimentalStdlibApi::class)
+
 package org.http4k.core
 
-actual class DataStream : Closeable {
+actual class DataStream : AutoCloseable {
     actual fun consumeAll(): DataInMemory {
         TODO("Not yet implemented")
     }

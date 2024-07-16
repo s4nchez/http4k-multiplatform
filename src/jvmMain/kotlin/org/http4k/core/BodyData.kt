@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalStdlibApi::class)
+
 package org.http4k.core
 
 import java.io.InputStream
@@ -18,7 +20,7 @@ actual data class DataInMemory(val payload: ByteBuffer) {
 
 }
 
-actual data class DataStream(val inputStream: InputStream) : Closeable {
+actual data class DataStream(val inputStream: InputStream) : AutoCloseable  {
     actual fun consumeAll(): DataInMemory = inputStream.use { DataInMemory(it.readBytes()) }
 
     override fun close() {
