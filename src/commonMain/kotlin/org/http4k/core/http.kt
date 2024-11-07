@@ -4,28 +4,18 @@ package org.http4k.core
 
 import org.http4k.core.Body.Companion.EMPTY
 import org.http4k.core.HttpMessage.Companion.HTTP_1_1
+import kotlinx.io.*
 
 typealias Headers = Parameters
 
-
-expect class DataStream : AutoCloseable {
-    fun consumeAll(): DataInMemory
-}
-
-expect class DataInMemory(value: ByteArray) {
-    constructor(value: String)
-    fun asStream(): DataStream
-    fun asString(): String
-    fun size(): Int
-}
 
 /**
  * If this Body is NOT being returned to the caller (via a Server implementation or otherwise), close() should be
  * called.
  */
-interface Body : AutoCloseable {
-    val stream: DataStream
-    val payload: DataInMemory
+interface Body: AutoCloseable {
+    val stream: Source
+    val payload: Buffer
 
     /**
      * Will be `null` for bodies where it's impossible to a priori determine - e.g. StreamBody
@@ -35,9 +25,9 @@ interface Body : AutoCloseable {
     companion object {
         operator fun invoke(body: String): Body = MemoryBody(body)
 
-        operator fun invoke(body: DataInMemory): Body = MemoryBody(body)
+        operator fun invoke(body: Source): Body = MemoryBody(body)
 
-        operator fun invoke(body: DataStream, length: Long? = null): Body = StreamBody(body, length)
+        operator fun invoke(body: Source, length: Long?): Body = StreamBody(body, length)
 
         val EMPTY: Body = MemoryBody("")
     }
@@ -46,14 +36,16 @@ interface Body : AutoCloseable {
 /**
  * Represents a body that is backed by an in-memory DataInMemory. Closing this has no effect.
  **/
-data class MemoryBody(override val payload: DataInMemory) : Body {
-    constructor(payload: String) : this(DataInMemory(payload))
-    constructor(payload: ByteArray) : this(DataInMemory(payload))
+data class MemoryBody(override val payload: Buffer) : Body {
+    constructor(payload: Source) : this(Buffer().apply { write(payload.buffered().readByteArray()) })
+    constructor(payload: String) : this(payload.encodeToByteArray())
+    constructor(payload: ByteArray) : this(Buffer().apply { write(payload) })
 
-    override val length get() = payload.size().toLong()
-    override fun close() {}
-    override val stream get() = payload.asStream()
-    override fun toString() = payload.asString()
+    override val length get() = payload.size
+    override fun close() = payload.close()
+
+    override val stream get() = payload
+    override fun toString() = payload.readString()
 }
 
 /**
@@ -64,12 +56,9 @@ data class MemoryBody(override val payload: DataInMemory) : Body {
  * 2. If this Body is NOT being returned to the caller (via a Server implementation or otherwise), close() should be called.
  * 3. Depending on the source of the stream, this body may or may not contain a known length.
  */
-class StreamBody(override val stream: DataStream, override val length: Long? = null) : Body {
-    override val payload: DataInMemory by lazy { stream.consumeAll() }
-
-    override fun close() {
-        stream.close()
-    }
+class StreamBody(override val stream: Source, override val length: Long? = null) : Body {
+    override val payload: Buffer by lazy { Buffer().apply { write(stream.buffered().readByteArray()) } }
+    override fun close() = stream.close()
 
     override fun toString() = "<<stream>>"
 
@@ -144,7 +133,7 @@ interface HttpMessage : AutoCloseable {
     /**
      * (Copy &) sets the body content.
      */
-    fun body(body: DataStream, length: Long? = null): HttpMessage
+    fun body(body: Source, length: Long? = null): HttpMessage
 
     /**
      * Retrieves all header values with this name.
@@ -154,18 +143,13 @@ interface HttpMessage : AutoCloseable {
     /**
      * This will realise any underlying stream.
      */
-    fun bodyString(): String = body.payload.asString()
+    fun bodyString(): String = body.payload.readString()
 
     companion object {
         const val HTTP_1_1 = "HTTP/1.1"
         const val HTTP_2 = "HTTP/2"
     }
 
-    /**
-     * Closes the request. For server generated messages, this is called by all backend/client implementations,
-     * but when consuming external responses in streaming mode, this should be used.
-     */
-    override fun close() = body.close()
 }
 
 enum class Method {
@@ -235,7 +219,7 @@ interface Request : HttpMessage {
 
     override fun body(body: String): Request
 
-    override fun body(body: DataStream, length: Long?): Request
+    override fun body(body: Source, length: Long?): Request
 
     override fun toMessage() =
         listOf("$method $uri $version", headers.toHeaderMessage(), bodyString()).joinToString("\r\n")
@@ -290,7 +274,8 @@ data class MemoryRequest(
 
     override fun body(body: String) = copy(body = Body(body))
 
-    override fun body(body: DataStream, length: Long?) = copy(body = Body(body, length))
+    override fun body(body: Source, length: Long?) = copy(body = Body(body, length))
+    override fun close() = body.close()
 
     override fun toString(): String = toMessage()
 
@@ -321,7 +306,7 @@ interface Response : HttpMessage {
 
     override fun body(body: String): Response
 
-    override fun body(body: DataStream, length: Long?): Response
+    override fun body(body: Source, length: Long?): Response
 
     fun status(new: Status): Response
 
@@ -359,7 +344,9 @@ data class MemoryResponse(
 
     override fun status(new: Status) = copy(status = new)
 
-    override fun body(body: DataStream, length: Long?) = copy(body = Body(body, length))
+    override fun close() = body.close()
+
+    override fun body(body: Source, length: Long?) = copy(body = Body(body, length))
 
     override fun toString(): String = toMessage()
 

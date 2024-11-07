@@ -1,7 +1,9 @@
 package org.http4k.core
 
+import kotlinx.io.Buffer
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import java.io.InputStream
-import java.nio.ByteBuffer
 
 /**
  * BodyMode represents a choice between working lazily with streams or eagerly storing the body contents in memory.
@@ -18,10 +20,10 @@ import java.nio.ByteBuffer
 sealed class BodyMode : (InputStream) -> Body {
     object Memory : BodyMode() {
         override fun invoke(stream: InputStream): Body =
-            stream.use { Body(DataInMemory(ByteBuffer.wrap(it.readBytes()))) }
+            stream.use { Body(Buffer().apply { write(stream.readBytes()) }) }
     }
-
     object Stream : BodyMode() {
-        override fun invoke(stream: InputStream): Body = Body(DataStream(stream))
+        override fun invoke(stream: InputStream): Body = StreamBody(stream.asSource().buffered())
     }
 }
+

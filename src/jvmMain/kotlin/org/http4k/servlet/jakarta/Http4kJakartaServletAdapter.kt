@@ -2,6 +2,7 @@ package org.http4k.servlet.jakarta
 
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import kotlinx.io.asInputStream
 import org.http4k.core.*
 import org.http4k.core.Status.Companion.NOT_IMPLEMENTED
 import org.http4k.server.supportedOrNull
@@ -19,12 +20,12 @@ class Http4kJakartaServletAdapter(private val handler: HttpHandler) {
 fun Response.transferTo(destination: HttpServletResponse) {
     destination.status = status.code
     headers.forEach { (key, value) -> destination.addHeader(key, value) }
-    body.stream.inputStream.use { input -> destination.outputStream.use { output -> input.copyTo(output) } }
+    body.stream.asInputStream().use { input -> destination.outputStream.use { output -> input.copyTo(output) } }
 }
 
 fun HttpServletRequest.asHttp4kRequest() = Method.supportedOrNull(method)?.let {
     Request(it, Uri.of(requestURI + queryString.toQueryString()))
-        .body(DataStream(inputStream), getHeader("Content-Length").safeLong()).headers(headerParameters())
+        .body(BodyMode.Stream(inputStream).stream, getHeader("Content-Length").safeLong()).headers(headerParameters())
         .source(RequestSource(remoteAddr, remotePort, scheme))
 }
 

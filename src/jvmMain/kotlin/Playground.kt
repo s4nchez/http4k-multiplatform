@@ -7,11 +7,15 @@ import org.http4k.server.SunHttp
 import org.http4k.server.asServer
 
 fun main() {
-    val server = { request: Request -> Response(Status.OK).body("Hello, world!") }
+    val app = { request: Request -> Response(Status.OK).body("Hello, world!") }
 
-    server.asServer(SunHttp(9000)).start()
+    val server = app.asServer(SunHttp(9000))
+
+    server.start()
 
     val response = JavaHttpClient()(Request(Method.GET, "http://localhost:9000"))
 
     println(response)
+
+    server.stop()
 }

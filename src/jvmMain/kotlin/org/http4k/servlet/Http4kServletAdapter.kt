@@ -1,5 +1,6 @@
 package org.http4k.servlet
 
+import kotlinx.io.asInputStream
 import org.http4k.core.*
 import java.util.Enumeration
 import javax.servlet.http.HttpServletRequest
@@ -16,12 +17,12 @@ class Http4kServletAdapter(private val handler: HttpHandler) {
 fun Response.transferTo(destination: HttpServletResponse) {
     destination.setStatus(status.code, status.description)
     headers.forEach { (key, value) -> destination.addHeader(key, value) }
-    body.stream.inputStream.use { input -> destination.outputStream.use { output -> input.copyTo(output) } }
+    body.stream.asInputStream().use { input -> destination.outputStream.use { output -> input.copyTo(output) } }
 }
 
 fun HttpServletRequest.asHttp4kRequest() =
     Request(Method.valueOf(method), Uri.of(requestURI + queryString.toQueryString()))
-        .body(DataStream(inputStream), getHeader("Content-Length").safeLong()).headers(headerParameters())
+        .body(BodyMode.Stream(inputStream).stream, getHeader("Content-Length").safeLong()).headers(headerParameters())
         .source(RequestSource(remoteAddr, remotePort, scheme))
 
 private fun HttpServletRequest.headerParameters() =

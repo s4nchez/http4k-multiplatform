@@ -1,6 +1,7 @@
 package org.http4k.server
 
 import com.sun.net.httpserver.HttpExchange
+import kotlinx.io.asInputStream
 import org.http4k.core.*
 import org.http4k.core.Status.Companion.NOT_IMPLEMENTED
 import org.http4k.core.Status.Companion.NO_CONTENT
@@ -12,7 +13,7 @@ class HttpExchangeHandler(private val handler: HttpHandler) : com.sun.net.httpse
             sendResponseHeaders(httpResponse.status.code, -1)
         } else {
             sendResponseHeaders(httpResponse.status.code, httpResponse.body.length ?: 0)
-            httpResponse.body.stream.inputStream.use { input -> responseBody.use { input.copyTo(it) } }
+            httpResponse.body.stream.asInputStream().use { input -> responseBody.use { input.copyTo(it) } }
         }
     }
 
@@ -22,7 +23,7 @@ class HttpExchangeHandler(private val handler: HttpHandler) : com.sun.net.httpse
                 Request(it,
                     requestURI.rawQuery?.let { Uri.of(requestURI.rawPath).query(requestURI.rawQuery) }
                         ?: Uri.of(requestURI.rawPath))
-                    .body(DataStream(requestBody), requestHeaders.getFirst("Content-Length").safeLong())
+                    .body(BodyMode.Stream(requestBody).stream, requestHeaders.getFirst("Content-Length").safeLong())
                     .headers(requestHeaders.toList().flatMap { (key, values) -> values.map { key to it } })
                     .source(RequestSource(localAddress.address.hostAddress, localAddress.port))
             }

@@ -1,5 +1,7 @@
 package org.http4k.client
 
+import kotlinx.io.Buffer
+import kotlinx.io.asInputStream
 import org.http4k.core.*
 import org.http4k.core.Status.Companion.CLIENT_TIMEOUT
 import org.http4k.core.Status.Companion.CONNECTION_REFUSED
@@ -41,8 +43,7 @@ object Java8HttpClient {
                 }
                 request.body.apply {
                     if (this != Body.EMPTY) {
-                        val content: DataStream = if (stream.inputStream.available() == 0) payload.asStream() else stream
-                        content.inputStream.copyTo(outputStream)
+                        stream.asInputStream().copyTo(outputStream)
                     }
                 }
             }
@@ -65,7 +66,7 @@ object Java8HttpClient {
 
     // Because HttpURLConnection closes the stream if a new request is made, we are forced to consume it straight away
     private fun HttpURLConnection.body(status: Status) =
-        Body(DataInMemory(resolveStream(status).readBytes().let { ByteBuffer.wrap(it) }))
+        Body(resolveStream(status).readBytes().let { Buffer().apply{write(it) }})
 
     private fun HttpURLConnection.resolveStream(status: Status) =
         when {
