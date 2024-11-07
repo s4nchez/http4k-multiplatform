@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
-    kotlin("multiplatform") version "1.9.0"
+    kotlin("multiplatform") version "2.0.21"
 }
 
 group = "org.example"
@@ -39,7 +39,7 @@ kotlin {
         compilations.getByName("main") {
             cinterops {
                 val libcurl by creating {
-                    defFile = project.file("src/nativeInterop/cinterop/libcurl.def")
+                    definitionFile.set(project.file("src/nativeInterop/cinterop/libcurl.def"))
                     packageName("com.jetbrains.handson.http")
                     compilerOpts("-I/path")
                     includeDirs.allHeaders("path")
